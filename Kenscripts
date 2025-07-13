@@ -1,0 +1,112 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local gui = script.Parent
+local randomizeButton = gui:WaitForChild("RandomizeButton")
+local espToggle = gui:WaitForChild("ESPToggle")
+local desiredPetBox = gui:WaitForChild("DesiredPetBox")
+
+local espEnabled = false
+local petAssignments = {}
+
+local EggToPets = {
+    ["Common Egg"] = {"Bunny", "Chick", "Mouse"},
+    ["Uncommon Egg"] = {"Goat", "Pig", "Sheep"},
+    ["Bug Egg"] = {"Ladybug", "Caterpillar", "Dragonfly"},
+    ["Bee Egg"] = {"Honeybee", "Bumblebee", "Queen Bee"},
+    ["Dino Egg"] = {"Triceratops", "Stegosaurus", "T-Rex"},
+    ["Cursed Egg"] = {"Cursed Cat", "Cursed Dog", "Cursed Bat"}
+}
+
+local function clearLabels()
+    for _, egg in pairs(workspace:GetDescendants()) do
+        if egg:IsA("BasePart") and egg:FindFirstChild("PetLabel") then
+            egg.PetLabel:Destroy()
+        end
+    end
+end
+
+local function getEggTypeFromName(name)
+    for eggType, _ in pairs(EggToPets) do
+        if name:lower():find(eggType:lower()) then
+            return eggType
+        end
+    end
+    return nil
+end
+
+local function createLabel(egg, petName, isDesired)
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "PetLabel"
+    billboard.Adornee = egg
+    billboard.Size = UDim2.new(0, 100, 0, 40)
+    billboard.StudsOffset = Vector3.new(0, 2, 0)
+    billboard.AlwaysOnTop = true
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = petName
+    label.Font = Enum.Font.Gotham
+    label.TextScaled = true
+    label.TextColor3 = isDesired and Color3.fromRGB(255, 225, 0) or Color3.fromRGB(255, 255, 255)
+    label.TextStrokeTransparency = isDesired and 0.5 or 0.8
+    label.TextStrokeColor3 = Color3.new(0, 0, 0)
+    billboard.Parent = egg
+    label.Parent = billboard
+end
+
+local function assignPets()
+    petAssignments = {}
+    for _, egg in pairs(workspace:GetDescendants()) do
+        if egg:IsA("BasePart") then
+            local eggType = getEggTypeFromName(egg.Name)
+            if eggType then
+                local pets = EggToPets[eggType]
+                if pets then
+                    local randomPet = pets[math.random(1, #pets)]
+                    petAssignments[egg] = randomPet
+                end
+            end
+        end
+    end
+end
+
+local function showPetLabels()
+    clearLabels()
+    local desired = desiredPetBox.Text:lower()
+    for egg, pet in pairs(petAssignments) do
+        local isDesired = desired ~= "" and pet:lower() == desired
+        createLabel(egg, pet, isDesired)
+    end
+end
+
+randomizeButton.MouseButton1Click:Connect(function()
+    randomizeButton.Text = "Randomizing..."
+    randomizeButton.AutoButtonColor = false
+    randomizeButton.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+    
+    assignPets()
+    
+    task.wait(math.random(10, 15))  -- Delay before labels appear
+    
+    if espEnabled then
+        showPetLabels()
+    end
+
+    randomizeButton.Text = "Randomize Pets"
+    randomizeButton.AutoButtonColor = true
+    randomizeButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+end)
+
+espToggle.MouseButton1Click:Connect(function()
+    espEnabled = not espEnabled
+    espToggle.Text = espEnabled and "ESP: ON" or "ESP: OFF"
+
+    if espEnabled then
+        showPetLabels()
+    else
+        clearLabels()
+    end
+end)
