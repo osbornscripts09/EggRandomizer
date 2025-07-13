@@ -1,0 +1,180 @@
+-- Pet Randomizer GUI for "Grow a Garden"
+-- Place this in StarterPlayerScripts or a LocalScript that runs for the player
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local player = Players.LocalPlayer
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.Name = "PetRandomizerGui"
+gui.ResetOnSpawn = false
+
+-- UI Components
+local function createButton(name, text, position)
+    local btn = Instance.new("TextButton")
+    btn.Name = name
+    btn.Text = text
+    btn.Size = UDim2.new(0, 150, 0, 40)
+    btn.Position = position
+    btn.BackgroundColor3 = Color3.fromRGB(40, 170, 100)
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextScaled = true
+    btn.Parent = gui
+
+    local stroke = Instance.new("UIStroke", btn)
+    stroke.Thickness = 2
+    stroke.Color = Color3.fromRGB(255, 255, 255)
+
+    local corner = Instance.new("UICorner", btn)
+    corner.CornerRadius = UDim.new(0, 8)
+
+    return btn
+end
+
+local function createTextBox(name, placeholder, position)
+    local box = Instance.new("TextBox")
+    box.Name = name
+    box.PlaceholderText = placeholder
+    box.Size = UDim2.new(0, 150, 0, 40)
+    box.Position = position
+    box.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    box.TextColor3 = Color3.fromRGB(255, 255, 255)
+    box.Font = Enum.Font.Gotham
+    box.TextScaled = true
+    box.Parent = gui
+
+    local stroke = Instance.new("UIStroke", box)
+    stroke.Thickness = 2
+    stroke.Color = Color3.fromRGB(255, 255, 255)
+
+    local corner = Instance.new("UICorner", box)
+    corner.CornerRadius = UDim.new(0, 8)
+
+    return box
+end
+
+local randomizeBtn = createButton("RandomizeButton", "Randomize", UDim2.new(0, 20, 0, 100))
+local espToggle = createButton("ESPToggle", "ESP: OFF", UDim2.new(0, 20, 0, 150))
+local autoToggle = createButton("AutoToggle", "AUTO: OFF", UDim2.new(0, 20, 0, 200))
+local desiredInput = createTextBox("DesiredPetInput", "Desired Pet...", UDim2.new(0, 20, 0, 260))
+
+-- Pet mapping (should be expanded to full list from growagardenpro.com)
+local EggToPets = {
+    ["Dino Egg"] = {"Triceratops", "Raptor", "T-Rex"},
+    ["Mossy Egg"] = {"Frog", "Mushroom Dog", "Snail"},
+    ["Ice Egg"] = {"Ice Golem", "Penguin", "Frosty"},
+}
+
+-- State
+local ESP_ENABLED = false
+local AUTO_ENABLED = false
+local labels = {}
+
+-- Utilities
+local function animateButton(button)
+    local sizeUp = TweenService:Create(button, TweenInfo.new(0.1), {Size = button.Size + UDim2.new(0, 5, 0, 5)})
+    local sizeDown = TweenService:Create(button, TweenInfo.new(0.1), {Size = button.Size})
+    sizeUp:Play()
+    sizeUp.Completed:Wait()
+    sizeDown:Play()
+end
+
+local function clearLabels()
+    for _, label in pairs(labels) do
+        if label and label.Parent then
+            label:Destroy()
+        end
+    end
+    labels = {}
+end
+
+local function getEggType(egg)
+    for eggType, _ in pairs(EggToPets) do
+        if egg.Name:find(eggType) then
+            return eggType
+        end
+    end
+    return nil
+end
+
+local function createLabel(part, petName, isDesired)
+    local billboard = Instance.new("BillboardGui")
+    billboard.Adornee = part
+    billboard.Size = UDim2.new(0, 100, 0, 30)
+    billboard.StudsOffset = Vector3.new(0, 2, 0)
+    billboard.AlwaysOnTop = true
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = petName
+    label.TextScaled = true
+    label.Font = isDesired and Enum.Font.GothamBold or Enum.Font.Gotham
+    label.TextColor3 = isDesired and Color3.fromRGB(255, 215, 0) or Color3.fromRGB(255, 255, 255)
+    label.Parent = billboard
+
+    billboard.Parent = gui
+    table.insert(labels, billboard)
+end
+
+local function randomizePets()
+    clearLabels()
+    local desiredPet = desiredInput.Text:lower()
+    for _, egg in pairs(workspace:GetDescendants()) do
+        if egg:IsA("BasePart") and egg.Name:find("Egg") then
+            local eggType = getEggType(egg)
+            if eggType and EggToPets[eggType] then
+                local pets = EggToPets[eggType]
+                local chosenPet = pets[math.random(1, #pets)]
+                local isDesired = (desiredPet ~= "" and chosenPet:lower() == desiredPet)
+                if ESP_ENABLED then
+                    createLabel(egg, chosenPet, isDesired)
+                end
+            end
+        end
+    end
+end
+
+local function delayedRandomize()
+    randomizePets()
+    local desired = desiredInput.Text
+    if desired ~= "" then
+        task.delay(math.random(10, 15), function()
+            if ESP_ENABLED then
+                randomizePets()
+            end
+        end)
+    end
+end
+
+-- Events
+randomizeBtn.MouseButton1Click:Connect(function()
+    animateButton(randomizeBtn)
+    delayedRandomize()
+end)
+
+espToggle.MouseButton1Click:Connect(function()
+    ESP_ENABLED = not ESP_ENABLED
+    animateButton(espToggle)
+    espToggle.Text = ESP_ENABLED and "ESP: ON" or "ESP: OFF"
+    if not ESP_ENABLED then
+        clearLabels()
+    else
+        randomizePets()
+    end
+end)
+
+autoToggle.MouseButton1Click:Connect(function()
+    AUTO_ENABLED = not AUTO_ENABLED
+    animateButton(autoToggle)
+    autoToggle.Text = AUTO_ENABLED and "AUTO: ON" or "AUTO: OFF"
+
+    if AUTO_ENABLED then
+        task.spawn(function()
+            while AUTO_ENABLED do
+                delayedRandomize()
+                wait(math.random(10, 15))
+            end
+        end)
+    end
+end)
